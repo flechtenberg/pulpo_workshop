@@ -40,6 +40,7 @@ To get started with the workshop, follow these steps to set up your environment.
 ```bash
 pip install ipywidgets ipywidgets
 pip install pdf2image
+pip install ipympl
 ```
 ---
 
