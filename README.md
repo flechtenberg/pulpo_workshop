@@ -11,11 +11,10 @@ To get started with the workshop, follow these steps to set up your environment.
 - Clone or download the repository and store the files in a folder named `pulpo_workshop`.
 
 ### 2. Create a Conda Environment
-- Ensure you are using **Python 3.10** for this workshop, as **Python 3.11 or later is (currently) not supported**.
   
   **Command to create a conda environment**:
   ```bash
-  conda create --name pulpo_brightcon_env python=3.10
+  conda create --name pulpo_brightcon_env python=3.11
   conda activate pulpo_brightcon_env
   ```
 
@@ -23,8 +22,14 @@ To get started with the workshop, follow these steps to set up your environment.
 - Once the environment is set up, install the PULPO package by running the following command:
   
   ```bash
-  pip install pulpo-dev
+  pip install pulpo-dev[bw2]
   ```
+
+- Also make sure you have matplotlib installed:
+
+```bash
+  pip install matplotlib
+```
 
 ### 4. Install Additional Dependencies for Notebook X2
 - Notebook `X2_PULPO_exercise.ipynb` requires additional dependencies. Install them by running the following commands:
