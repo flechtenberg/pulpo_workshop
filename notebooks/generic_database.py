@@ -334,68 +334,45 @@ def setup_biosphere_db(flow_ids):
         print('Biosphere database already exists')
 
 def setup_technosphere_db(database, processes, markets):
-    """Setup the technosphere database with generated processes and markets."""
-    if 'generated_technosphere_db' not in bd.databases:
-        technosphere_db = bd.Database(database)
-        technosphere_db.write({})
+    """Write the generated processes and markets, with all their exchanges, to the database.
 
-        # Register each process
-        for proc in processes:
-            act = technosphere_db.new_activity(proc.process_id)
-            act['unit'] = 'unit'  # Define the unit appropriately
-            act['location'] = proc.region_id
-            act['name'] = f'Process {proc.process_id}'
-            act['reference product'] = f'Product {proc.product_id}'
-            act.new_exchange(amount=1.0, input=act.key, type='production').save()
-            act.save()
+    Everything goes to Brightway in one Database.write call; saving each activity and
+    exchange separately takes minutes for the workshop's database.
+    """
+    data = {}
 
-        # Register each market
-        for market in markets:
-            act = technosphere_db.new_activity(market.market_id)
-            act['unit'] = 'unit'  # Define the unit appropriately
-            act['location'] = market.region_id
-            act['name'] = f'Market {market.market_id}'
-            act['reference product'] = f'Product {market.product_id}'
-            act.new_exchange(amount=1.0, input=act.key, type='production').save()
-            act.save()
-
-        print('Technosphere database created')
-    else:
-        print('Technosphere database already exists')
-
-def add_exchanges_to_db(database, processes, markets):
-    """Add exchanges to the technosphere and market activities in the database."""
-    technosphere_db = bd.Database(database)
-    biosphere_db = bd.Database('biosphere3')
-
-    # Add exchanges for processes
+    # Processes: their product, the market inputs and the environmental flows
     for proc in processes:
-        act = technosphere_db.get(proc.process_id)
+        key = (database, proc.process_id)
+        exchanges = [{'input': key, 'amount': 1.0, 'type': 'production'}]
+        exchanges += [{'input': (database, market_id), 'amount': qty, 'type': 'technosphere'}
+                      for market_id, qty in proc.inputs]
+        exchanges += [{'input': ('biosphere3', flow_id), 'amount': qty, 'type': 'biosphere'}
+                      for flow_id, qty in proc.environmental_flows]
+        data[key] = {
+            'name': f'Process {proc.process_id}',
+            'reference product': f'Product {proc.product_id}',
+            'unit': 'unit',
+            'location': proc.region_id,
+            'exchanges': exchanges,
+        }
 
-        # Add market inputs
-        for market_id, qty in proc.inputs:
-            market_act = technosphere_db.get(market_id)
-            act.new_exchange(amount=qty, input=market_act.key, type='technosphere').save()
-
-        # Add environmental flows (biosphere exchanges)
-        for flow_id, qty in proc.environmental_flows:
-            flow_act = biosphere_db.get(flow_id)
-            act.new_exchange(amount=qty, input=flow_act.key, type='biosphere').save()
-
-        act.save()
-
-    # Add exchanges for markets
+    # Markets: their product and the shares of the processes that supply it
     for market in markets:
-        act = technosphere_db.get(market.market_id)
+        key = (database, market.market_id)
+        exchanges = [{'input': key, 'amount': 1.0, 'type': 'production'}]
+        exchanges += [{'input': (database, process_id), 'amount': share, 'type': 'technosphere'}
+                      for process_id, share in market.composition]
+        data[key] = {
+            'name': f'Market {market.market_id}',
+            'reference product': f'Product {market.product_id}',
+            'unit': 'unit',
+            'location': market.region_id,
+            'exchanges': exchanges,
+        }
 
-        # Add process contributions to the market
-        for process_id, share in market.composition:
-            process_act = technosphere_db.get(process_id)
-            act.new_exchange(amount=share, input=process_act.key, type='technosphere').save()
-
-        act.save()
-
-    print('Exchanges added to the technosphere and market activities in the database')
+    bd.Database(database).write(data)
+    print('Technosphere database created, with the exchanges of every process and market')
 
 def setup_lcia_methods(characterization_factors, methods):
     """Setup LCIA methods based on generated characterization factors."""
@@ -424,7 +401,6 @@ def setup_generated_system(project, database, processes, markets, flow_ids, char
     bd.projects.set_current(project)
     setup_biosphere_db(flow_ids)
     setup_technosphere_db(database, processes, markets)
-    add_exchanges_to_db(database, processes, markets)
     setup_lcia_methods(characterization_factors, methods)
 
 
